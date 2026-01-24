@@ -530,6 +530,10 @@ function is_https(){
 	return false;
 }
 
+function is_ajax_request() {
+	return isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
+}
+
 error_reporting(E_ERROR | E_PARSE | E_COMPILE_ERROR);
 define('EASYPANEL_VERSION', '2.6.29');
 define('PHP_DEFAULT_VERSION', 'php56');

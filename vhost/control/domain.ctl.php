@@ -273,7 +273,7 @@ class DomainControl extends Control
 			}else{
 				$port = $proto == 'https' ? '443' : '80';
 			}
-			if(checkIp($subdir)==false || strpos($subdir,'.')==false){
+			if(checkIp($subdir)==false && checkDomain($subdir)==false || strpos($subdir,'.')===false || strpos($subdir,'*')!==false){
 				exit('源站IP填写错误');
 			}
 			if(!is_numeric($port) || $port<0 || $port>65535){

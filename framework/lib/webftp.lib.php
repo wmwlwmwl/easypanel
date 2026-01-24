@@ -270,10 +270,10 @@ function tolocal($str, $encoding = null)
 function getfileicon($file)
 {
 	$exts = [
-		'exe' => ['exe', 'com', 'apk', 'ipa', 'dmg', 'deb', 'rpm'],
-		'zip' => ['zip', '7z', 'tar', 'gz', 'tgz', 'bz2', 'rar', 'iso', 'cab', 'xz'],
-		'txt' => ['txt', 'ini', 'conf', 'md', 'log'],
-		'image' => ['gif', 'jpg', 'jpeg', 'bmp', 'png', 'ico', 'tiff', 'tif', 'webp', 'heic']
+		'exe' => ['exe', 'com', 'apk', 'aab', 'obb', 'xapk', 'ipa', 'dmg', 'deb', 'rpm'],
+		'zip' => ['zip', '7z', 'rar', 'tgz', 'gz', 'xz', 'tar', 'jar', 'iso', 'z', 'zipx', 'cab', 'bz2', 'arj', 'lz', 'lzh'],
+		'txt' => ['txt', 'text', 'ini', 'conf', 'config', 'md', 'log', 'yaml', 'yml'],
+		'image' => ['gif', 'jpg', 'jpeg', 'bmp', 'png', 'ico', 'tiff', 'tif', 'webp', 'heic', 'exif']
 	];
 	$ext = strrchr($file, '.');
 

@@ -21,6 +21,7 @@ class PhpsetControl extends Control
 		'8.2' => '/lib/php/extensions/no-debug-non-zts-20220829',
 		'8.3' => '/lib/php/extensions/no-debug-non-zts-20230831',
 		'8.4' => '/lib/php/extensions/no-debug-non-zts-20240924',
+		'8.5' => '/lib/php/extensions/no-debug-non-zts-20250925',
 	];
 
 	private $php_extensions = [
@@ -46,16 +47,23 @@ class PhpsetControl extends Control
 			'sort' => 6
 		],
 		'swooleloader2' => [
-			'name' => 'Swoole Loader 2',
-			'description' => '用于解密Swoole Compiler v2加密的PHP脚本',
+			'name' => 'Swoole Loader 2.2',
+			'description' => '用于解密Swoole Compiler v2.2加密的PHP脚本',
 			'file' => 'swoole_loader22',
 			'data' => "extension={file}",
 			'sort' => 4
 		],
 		'swooleloader3' => [
-			'name' => 'Swoole Loader 3',
-			'description' => '用于解密Swoole Compiler v3加密的PHP脚本',
+			'name' => 'Swoole Loader 3.1',
+			'description' => '用于解密Swoole Compiler v3.1加密的PHP脚本',
 			'file' => 'swoole_loader31',
+			'data' => "extension={file}",
+			'sort' => 5
+		],
+		'swooleloader32' => [
+			'name' => 'Swoole Loader 3.2',
+			'description' => '用于解密Swoole Compiler v3.2加密的PHP脚本',
+			'file' => 'swoole_loader32',
 			'data' => "extension={file}",
 			'sort' => 5
 		],
@@ -66,26 +74,63 @@ class PhpsetControl extends Control
 			'data' => "zend_extension={file}",
 			'sort' => 3
 		],
+		'xloader' => [
+			'name' => 'XLoader',
+			'description' => '用于解密XLoader加密的PHP脚本',
+			'file' => 'XLoader_Lin',
+			'data' => "zend_extension={file}",
+			'sort' => 3
+		],
 		'redis' => [
 			'name' => 'Redis',
 			'description' => 'Redis扩展',
 			'file' => 'redis.so',
 			'data' => "extension={file}",
-			'sort' => 1
+			'sort' => 2
 		],
 		'memcache' => [
 			'name' => 'Memcache',
 			'description' => 'Memcache扩展',
 			'file' => 'memcache.so',
 			'data' => "extension={file}",
-			'sort' => 1
+			'sort' => 2
 		],
 		'memcached' => [
 			'name' => 'Memcached',
 			'description' => 'Memcached扩展',
 			'file' => 'memcached.so',
 			'data' => "extension={file}",
-			'sort' => 1
+			'sort' => 2
+		],
+		'ssh2' => [
+			'name' => 'ssh2',
+			'description' => 'ssh2扩展',
+			'file' => 'ssh2.so',
+			'data' => "extension={file}",
+			'sort' => 2
+		],
+		'mcrypt' => [
+			'name' => 'mcrypt',
+			'description' => 'mcrypt扩展',
+			'file' => 'mcrypt.so',
+			'data' => "extension={file}",
+			'sort' => 2
+		],
+		'pcntl' => [
+			'name' => 'pcntl',
+			'description' => 'pcntl扩展',
+			'file' => 'pcntl.so',
+			'data' => "extension={file}",
+			'sort' => 2,
+			'admin' => true
+		],
+		'swoole' => [
+			'name' => 'swoole',
+			'description' => 'Swoole扩展',
+			'file' => 'swoole.so',
+			'data' => "extension={file}",
+			'sort' => 2,
+			'admin' => true
 		],
 	];
 
@@ -173,6 +218,7 @@ class PhpsetControl extends Control
 
 		$list = [];
 		foreach($this->php_extensions as $name=>$row){
+			if($row['admin'] && !getRole('admin')) continue;
 			$file_name = null;
 			foreach($file_list as $file){
 				if(strpos($file, $row['file'])!==false){
@@ -288,8 +334,8 @@ class PhpsetControl extends Control
 		$save = false;
 		$ini_data = '';
 		if($ext){
-			if($ext['swooleloader2']==1 && $ext['swooleloader3']==1) exit('Swoole Loader组件只能开启一个版本');
-			if(($ext['swooleloader2']==1 || $ext['swooleloader3']==1) && $ext['ioncube']==1) exit('Swoole Loader与ionCube组件冲突');
+			if($ext['swooleloader2']+$ext['swooleloader3']+$ext['swooleloader32']>1) exit('Swoole Loader组件只能开启一个版本');
+			if(($ext['swooleloader2']==1 || $ext['swooleloader3']==1 || $ext['swooleloader32']==1) && $ext['ioncube']==1) exit('Swoole Loader与ionCube组件冲突');
 			foreach($ext as $name=>$value){
 				if(!array_key_exists($name, $extlist)) continue;
 				$current = $extlist[$name];

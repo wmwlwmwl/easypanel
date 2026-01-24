@@ -34,6 +34,10 @@ class WebftpControl extends Control
 		}
 
 		$file = $this->getphyfile($_REQUEST['file']);
+		if(filesize($file) > 5 * 1024 * 1024) {
+			$json['msg'] = '文件过大，不能打开编辑';
+			exit(json_encode($json));
+		}
 		$fp = fopen($file, 'rb');
 
 		if (!$fp) {
@@ -54,25 +58,24 @@ class WebftpControl extends Control
 		$json['code'] = 200;
 		$json['content'] = $content;
 		$json['charset'] = $charset;
+		$json['size'] = filesize($file);
+		$json['st_mtime'] = filemtime($file);
 		$json['filename'] = $_REQUEST['file'];
 		exit(json_encode($json));
-		header('Content-Type: text/xml; charset=' . $charset);
-		$str = '<?xml version="1.0" encoding="' . $charset . '"?>';
-		$str .= '<result>';
-		$str .= '<content>' . $content . '</content>';
-		$str .= '<charset>' . $charset . '</charset>';
-		$str .= '<filename>' . $_REQUEST['file'] . '</filename>';
-		$str .= '</result>';
-		exit($str);
 	}
 
 	public function editsave()
 	{
-		$content = $_REQUEST['content'];
-		$charset = $_REQUEST['charset'];
-		$filename = $_REQUEST['filename'];
+		$json['code'] = 400;
+		$content = $_POST['content'];
+		$charset = $_POST['charset'];
+		$filename = $_POST['filename'];
 		if (!$content || !$charset || !$filename) {
-			exit('编辑失败,请联系管理员.');
+			if($_POST['json'] == 1) {
+				$json['msg'] = '参数不存在';
+				exit(json_encode($json));
+			}
+			exit('参数不存在');
 		}
 
 		$content = unescape($content);
@@ -85,15 +88,30 @@ class WebftpControl extends Control
 		$fp = fopen($file, 'wb');
 
 		if (!$fp) {
+			if($_POST['json'] == 1) {
+				$json['msg'] = '不能打开文件:' . $file;
+				exit(json_encode($json));
+			}
 			exit('不能打开文件:' . $file);
 		}
 
 		if (fwrite($fp, $content)) {
-			exit('编辑成功');
+			fclose($fp);
+			if($_POST['json'] == 1) {
+				$json['code'] = 200;
+				$json['msg'] = '保存成功';
+				$json['st_mtime'] = filemtime($file);
+				exit(json_encode($json));
+			}
+			exit('保存成功');
 		}
 
 		fclose($fp);
-		exit('编辑失败');
+		if($_POST['json'] == 1) {
+			$json['msg'] = '保存失败';
+			exit(json_encode($json));
+		}
+		exit('保存失败');
 	}
 
 	private function is_utf8($liehuo_net)
@@ -271,6 +289,57 @@ class WebftpControl extends Control
 		return $this->index();
 	}
 
+	public function upsavenew()
+	{
+		$f_name = trim($_POST['f_name']);
+		$f_path = trim($_POST['f_path']);
+		$f_size = intval($_POST['f_size']);
+		$f_start = intval($_POST['f_start']);
+		$tmp_name = $_FILES['file']['tmp_name'];
+		if(empty($f_name) || empty($f_path) || $f_size <= 0) {
+			exit('{"status":false,"msg":"参数错误"}');
+		}
+		$file_path = $this->getphyfile($f_name, $f_path);
+		$file_dir = dirname($file_path);
+		if (!file_exists($file_dir)) {
+			mkdir($file_dir, 0777, true);
+		}
+
+		if($f_start == 0 && $f_size == $_FILES['file']['size']) {
+			if (my_copy_upfile($tmp_name, $file_path)) {
+				exit('{"status":true,"msg":"ok"}');
+			} else {
+				exit('{"status":false,"msg":"没有文件写入权限"}');
+			}
+		}
+
+		$tmp_file_path = $file_path . '.filepart';
+		change_to_super();
+		$in = fopen($tmp_name, 'rb');
+		if (!$in) {
+			exit('{"status":false,"msg":"读取上传文件失败"}');
+		}
+		change_to_user($_SESSION['webftp_user'], $_SESSION['webftp_group']);
+		if ($f_start == 0 && file_exists($tmp_file_path)) {
+			unlink($tmp_file_path);
+		}
+		$out = fopen($tmp_file_path, $f_start == 0 ? 'wb' : 'ab');
+		if (!$out) {
+			fclose($in);
+			exit('{"status":false,"msg":"没有文件写入权限"}');
+		}
+		while ($buff = fread($in, 8192)) { fwrite($out, $buff); }
+		fclose($in);
+		fclose($out);
+		$now_size = filesize($tmp_file_path);
+		if ($f_size == $now_size) {
+			rename($tmp_file_path, $file_path);
+			exit('{"status":true,"msg":"ok"}');
+		}else{
+			exit(strval($now_size));
+		}
+	}
+
 	public function readonly()
 	{
 		load_lib('pub:whm');
@@ -335,6 +404,10 @@ class WebftpControl extends Control
 			$whm->call($whmCall, 60);
 		}
 
+		if(is_ajax_request()) {
+			exit(json_encode(['code' => 200, 'msg' => '成功设置'.$i.'个文件']));
+		}
+
 		return $this->index();
 	}
 
@@ -356,19 +429,28 @@ class WebftpControl extends Control
 				}
 			}
 		}
+		if(is_ajax_request()) {
+			exit(json_encode(['code' => 200, 'msg' => '成功删除'.$success_count.'个文件或目录']));
+		}
 
-		$this->assign('msg', '成功删除文件/目录数:' . $success_count);
+		$this->assign('msg', '成功删除'.$success_count.'个文件或目录');
 		return $this->index();
 	}
 
 	public function mkdir()
 	{
-		$dir = $this->getphyfile(filterParam($_REQUEST['dir'], 'dir'));
+		$dir = $this->getphyfile(trim($_REQUEST['dir']));
 
 		if (@mkdir($dir)) {
+			if(is_ajax_request()) {
+				exit(json_encode(['code' => 200, 'msg' => '成功创建目录']));
+			}
 			$this->assign('msg', '成功创建目录');
 		}
 		else {
+			if(is_ajax_request()) {
+				exit(json_encode(['code' => 400, 'msg' => '创建目录失败']));
+			}
 			$this->assign('msg', '创建目录失败');
 		}
 
@@ -395,6 +477,9 @@ class WebftpControl extends Control
 
 		$clip = array('dir' => $dir, 'op' => $op, 'files' => $_REQUEST['files']);
 		addClip($clip);
+		if(is_ajax_request()) {
+			exit(json_encode(['code' => 200, 'msg' => ($op == 'cut' ? '剪切' : '复制') . '文件成功，请到目标目录粘贴']));
+		}
 		header('Content-Type: text/xml; charset=utf-8');
 		$str = '<?xml version="1.0" encoding="utf-8"?>';
 		$str .= '<result code=\'200\'/>';
@@ -403,14 +488,18 @@ class WebftpControl extends Control
 
 	public function rename()
 	{
-		$oldname = $this->getphyfile($_REQUEST['oldname']);
-		$newname = $this->getphyfile($_REQUEST['newname']);
+		$oldname = $this->getphyfile(trim($_REQUEST['oldname']));
+		$newname = $this->getphyfile(trim($_REQUEST['newname']));
 
 		if (rename($oldname, $newname)) {
-			$this->assign('重命名成功');
+			if(is_ajax_request()) {
+				exit(json_encode(['code' => 200, 'msg' => '重命名成功']));
+			}
 		}
 		else {
-			$this->assign('重命名失败');
+			if(is_ajax_request()) {
+				exit(json_encode(['code' => 400, 'msg' => '重命名失败']));
+			}
 		}
 
 		return $this->index();
@@ -420,6 +509,9 @@ class WebftpControl extends Control
 	{
 		$clip = getClip();
 		if ($clip == null || $clip['op'] == '') {
+			if(is_ajax_request()) {
+				exit(json_encode(['code' => 400, 'msg' => '没有进行复制或剪切']));
+			}
 			$this->assign('msg', '没有进行复制或剪切');
 			return $this->index();
 		}
@@ -460,6 +552,9 @@ class WebftpControl extends Control
 			}
 		}
 
+		if(is_ajax_request()) {
+			exit(json_encode(['code' => 200, 'msg' => '成功' . ($op == 'cut' ? '剪切' : '复制') . '了' . $success_count . '个文件或目录']));
+		}
 		$this->assign('msg', '成功' . ($op == 'cut' ? '剪切' : '复制') . '了' . $success_count . '个文件或目录');
 		return $this->index();
 	}
@@ -494,6 +589,13 @@ class WebftpControl extends Control
 		}
 
 		$result = $whm->call($whmCall);
+		if(is_ajax_request()) {
+			if ($result && $result->getCode() == 200) {
+				exit(json_encode(['code' => 200, 'msg' => '操作成功']));
+			} else {
+				exit(json_encode(['code' => 400, 'msg' => '操作失败']));
+			}
+		}
 		header('Content-Type: text/xml; charset=utf-8');
 		$str = '<?xml version="1.0" encoding="utf-8"?>';
 		if ($result && $result->getCode() == 200) {
@@ -532,6 +634,10 @@ class WebftpControl extends Control
 			}
 
 			$fa->add($file, $is_dir, $action);
+		}
+
+		if(is_ajax_request()) {
+			exit(json_encode(['code' => 200, 'msg' => '操作成功']));
 		}
 
 		return $this->index();

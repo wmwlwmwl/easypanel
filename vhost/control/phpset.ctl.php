@@ -219,6 +219,14 @@ class PhpsetControl extends Control
 		$list = [];
 		foreach($this->php_extensions as $name=>$row){
 			if($row['admin'] && !getRole('admin')) continue;
+			// PHP 8.5 默认内置并开启 opcache，无 opcache.so，关闭时只写 opcache.enable=0
+			if($name === 'opcache' && $phpver === '8.5'){
+				$row['data'] = 'opcache.enable=0';
+				$row['builtin'] = true;
+				$row['value'] = strpos($ini_data, 'opcache.enable=0')!==false ? 0 : 1;
+				$list[$name] = $row;
+				continue;
+			}
 			$file_name = null;
 			foreach($file_list as $file){
 				if(strpos($file, $row['file'])!==false){
@@ -340,6 +348,13 @@ class PhpsetControl extends Control
 				if(!array_key_exists($name, $extlist)) continue;
 				$current = $extlist[$name];
 				$value = intval($value);
+				if(!empty($current['builtin'])){
+					if($value == 0){
+						$ini_data .= $current['data']."\n";
+						$save = true;
+					}
+					continue;
+				}
 				if($value == 1){
 					$ini_data .= $current['data']."\n";
 					$save = true;

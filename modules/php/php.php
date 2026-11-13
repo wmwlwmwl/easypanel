@@ -151,15 +151,6 @@ function php_call($params)
 
 function php_get_cli_version()
 {
-	if (is_win()) {
-		// Windows 下由 bin/php.cmd 包装实现，读取包装里的 ext/phpXX 路径
-		$cmd = dirname(dirname(rtrim($GLOBALS['safe_dir'], '/\\'))) . '/bin/php.cmd';
-		$str = @file_get_contents($cmd);
-		if ($str && preg_match('!ext[/\\\\](php[0-9]+)[/\\\\]php\.exe!i', $str, $match)) {
-			return strtolower($match[1]);
-		}
-		return null;
-	}
 	if(file_exists('/usr/bin/php')){
 		$oripath = shell_exec('ls -al /usr/bin/php | awk \'{print $NF}\'');
 		if($oripath){
@@ -175,28 +166,6 @@ function php_get_cli_version()
 function php_set_cli_version($version)
 {
 	$version = ep_str($version);
-	if (is_win()) {
-		// Windows 没有 /usr/bin/php 软链，改为生成 <环境目录>\bin\php.cmd
-		$envdir = dirname(dirname(rtrim($GLOBALS['safe_dir'], '/\\')));
-		$bindir = $envdir . DIRECTORY_SEPARATOR . 'bin';
-		$cmd = $bindir . DIRECTORY_SEPARATOR . 'php.cmd';
-		if($version === ''){
-			@unlink($cmd);
-			return;
-		}
-		if (!preg_match('/^php[0-9]+$/', $version)) {
-			return false;
-		}
-		$exe = $envdir . DIRECTORY_SEPARATOR . 'kangle' . DIRECTORY_SEPARATOR . 'ext' . DIRECTORY_SEPARATOR . $version . DIRECTORY_SEPARATOR . 'php.exe';
-		if (!file_exists($exe)) {
-			return false;
-		}
-		if (!is_dir($bindir)) {
-			@mkdir($bindir, 0755, true);
-		}
-		$content = "@echo off\r\n\"" . str_replace('%', '%%', $exe) . "\" %*\r\n";
-		return false !== @file_put_contents($cmd, $content);
-	}
 	if($version === ''){
 		shell_exec('rm -f /usr/bin/php');
 	}else{
